@@ -62,9 +62,9 @@ jobs:
         run: |
           TAG_NAME=$(date +%Y%m%d-%H%M)
           gh release create "$TAG_NAME" \
-            /cannon/Anykernel3-Cannon-God.zip \
-            /cannon/Anykernel3-Cannon-God-KernelSu.zip \
-            /cannon/Anykernel3-Cannon-God-KernelSu-Next.zip \
+            /cannon/Anykernel3-Cannon-Docker-God.zip \
+            /cannon/Anykernel3-Cannon-Docker-God-KernelSu.zip \
+            /cannon/Anykernel3-Cannon-Docker-God-KernelSu-Next.zip \
             /cannon/KernelSU.apk \
             /cannon/KernelSU-Next.apk \
             --title "Cannon-God 内核 - $TAG_NAME" \
@@ -73,20 +73,20 @@ jobs:
       - name: 上传标准版内核
         uses: actions/upload-artifact@v4
         with:
-          name: Anykernel3-Cannon-God
-          path: /cannon/Anykernel3-Cannon-God.zip
+          name: Anykernel3-Cannon-Docker-God
+          path: /cannon/Anykernel3-Cannon-Docker-God.zip
 
       - name: 上传 KernelSU 版内核
         uses: actions/upload-artifact@v4
         with:
-          name: Anykernel3-Cannon-God-KernelSu
-          path: /cannon/Anykernel3-Cannon-God-KernelSu.zip
+          name: Anykernel3-Cannon-Docker-God-KernelSu
+          path: /cannon/Anykernel3-Cannon-Docker-God-KernelSu.zip
 
       - name: 上传 KernelSU-Next 版内核
         uses: actions/upload-artifact@v4
         with:
-          name: Anykernel3-Cannon-God-KernelSu-Next
-          path: /cannon/Anykernel3-Cannon-God-KernelSu-Next.zip
+          name: Anykernel3-Cannon-Docker-God-KernelSu-Next
+          path: /cannon/Anykernel3-Cannon-Docker-God-KernelSu-Next.zip
 
       - name: 上传 KernelSU 管理器
         uses: actions/upload-artifact@v4
