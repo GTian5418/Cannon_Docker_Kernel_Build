@@ -70,13 +70,32 @@ jobs:
             --title "Cannon-God 内核 - $TAG_NAME" \
             --notes "包含标准版、KernelSU版、KSU-Next版内核及对应的管理器 APK"
 
-      - name: 上传内核包 (Artifacts)
+      - name: 上传标准版内核
         uses: actions/upload-artifact@v4
         with:
-          name: Cannon-God-Kernels
-          path: |
-            /cannon/Anykernel3-Cannon-God.zip
-            /cannon/Anykernel3-Cannon-God-KernelSu.zip
-            /cannon/Anykernel3-Cannon-God-KernelSu-Next.zip
-            /cannon/KernelSU.apk
-            /cannon/KernelSU-Next.apk
+          name: Anykernel3-Cannon-God
+          path: /cannon/Anykernel3-Cannon-God.zip
+
+      - name: 上传 KernelSU 版内核
+        uses: actions/upload-artifact@v4
+        with:
+          name: Anykernel3-Cannon-God-KernelSu
+          path: /cannon/Anykernel3-Cannon-God-KernelSu.zip
+
+      - name: 上传 KernelSU-Next 版内核
+        uses: actions/upload-artifact@v4
+        with:
+          name: Anykernel3-Cannon-God-KernelSu-Next
+          path: /cannon/Anykernel3-Cannon-God-KernelSu-Next.zip
+
+      - name: 上传 KernelSU 管理器
+        uses: actions/upload-artifact@v4
+        with:
+          name: KernelSU-APK
+          path: /cannon/KernelSU.apk
+
+      - name: 上传 KernelSU-Next 管理器
+        uses: actions/upload-artifact@v4
+        with:
+          name: KernelSU-Next-APK
+          path: /cannon/KernelSU-Next.apk
