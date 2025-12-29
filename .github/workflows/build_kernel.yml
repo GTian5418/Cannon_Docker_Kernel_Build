@@ -1,0 +1,55 @@
+name: Build Cannon Kernel God
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      - name: 安装基础依赖
+        run: |
+          sudo apt update
+          sudo apt install -y git wget curl tar zip unzip make binutils bison flex libssl-dev bc libelf-dev gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi build-essential python3 libncurses5-dev libncursesw5-dev pkg-config ccache
+      - name: 准备编译环境
+        run: |
+          sudo mkdir -p /cannon
+          sudo chown $USER:$USER /cannon
+          cd /cannon
+          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master-kernel-build-2022/clang-r450784e.tar.gz
+          mkdir clang && tar -zxf clang-r450784e.tar.gz -C clang
+          wget -q -O gcc64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
+          mkdir gcc64 && tar -zxf gcc64.tar.gz -C gcc64
+          wget -q -O gcc32.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
+          mkdir gcc32 && tar -zxf gcc32.tar.gz -C gcc32
+          wget -q -O kernel.zip https://github.com/GTian5418/android_kernel_xiaomi_cannon/archive/refs/heads/lineage-20.zip && unzip -q kernel.zip
+          wget -q -O AnyKernel3.zip https://github.com/osm0sis/AnyKernel3/archive/refs/heads/master.zip && unzip -q AnyKernel3.zip && mv AnyKernel3-master Anykernel
+          wget -q -O Anykernel/dtb.img https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtb.img
+          wget -q -O Anykernel/dtbo.img https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtbo.img
+          wget -q https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/config.zip && unzip -q config.zip
+      - name: 设置 ccache 缓存
+        uses: actions/cache@v4
+        with:
+          path: /cannon/.ccache
+          key: kernel-ccache-${{ github.sha }}
+          restore-keys: kernel-ccache-
+      - name: 开始编译
+        run: |
+          cp build.sh /cannon/build.sh
+          chmod +x /cannon/build.sh
+          cd /cannon && ./build.sh
+      - name: 发布 Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME=$(date +%Y%m%d-%H%M)
+          echo "正在发布版本: $TAG_NAME"
+          gh release create "$TAG_NAME" /cannon/Anykernel3-Cannon-God.zip --title "Cannon-God 内核 - $TAG_NAME" --notes "自动编译完成"
+      - name: 上传内核包
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cannon-God-Kernel
+          path: /cannon/Anykernel3-Cannon-God.zip
