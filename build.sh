@@ -56,22 +56,18 @@ if [ -f "$OUT_DIR/arch/arm64/boot/Image.gz" ]; then
     sed -i '8s/do\.devicecheck=1/do.devicecheck=0/;13s/device\.name1=.*/device.name1=cannon/;14s/device\.name2=.*/device.name2=cannong/;32s|BLOCK=.*|BLOCK=auto;|' anykernel.sh
     zip -r9 "$ZIPS_OUT" . -x ".git/*" > /dev/null
 fi
-cp -r "$KERNEL" "$TOOLCHAIN/kernelsu"
-cp -r "$OUT_DIR" "$TOOLCHAIN/outsu"
+
+
+
 cp -r "$KERNEL" "$TOOLCHAIN/kernelsu_next"
-cp -r "$OUT_DIR" "$TOOLCHAIN/outsu_next"
-echo "================================================"
-echo ">>> 开始集成 KernelSU v0.9.5..."
-cd "$TOOLCHAIN/kernelsu"
+cp -rp "$OUT_DIR" "$TOOLCHAIN/outsu_next"
+cd "$KERNEL"
 curl -LSs https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh | bash -s v0.9.5
-build_step "g7.config" "$TOOLCHAIN/outsu" "$TOOLCHAIN/kernelsu"
+build_step "g7.config" "$OUT_DIR" "$KERNEL"
 cd "$AK_DIR"
 rm -f Image.*
 cp "$OUT_DIR/arch/arm64/boot/Image.gz" .
 zip -r9 "$KSU_ZIPS_OUT" . -x ".git/*" > /dev/null
-echo ">>> KernelSU 版本打包完成"
-echo "================================================"
-echo ">>> 开始集成 KernelSU-Next v1.1.1..."
 cd "$TOOLCHAIN/kernelsu_next"
 curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s v1.1.1
 sed -i '/static int ksu_umount_mnt/,/^}/c\
@@ -89,7 +85,6 @@ cd "$AK_DIR"
 rm -f Image.*
 cp "$TOOLCHAIN/outsu_next/arch/arm64/boot/Image.gz" .
 zip -r9 "$KSUN_ZIPS_OUT" . -x ".git/*" > /dev/null
-echo ">>> KernelSU-Next 版本打包完成"
 TOTAL_END=$(date +%s)
 echo "================================================"
 echo ">>> 全部完成！总耗时: $(( (TOTAL_END - TOTAL_START) / 60 ))分"
