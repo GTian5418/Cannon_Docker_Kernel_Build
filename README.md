@@ -15,6 +15,7 @@ apt update -y && apt install -y \
 # 下载并部署 Toolchains (Clang & GCC)
 mkdir -p /cannon && cd /cannon
 wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master-kernel-build-2022/clang-r450784e.tar.gz && mkdir clang && tar -C clang -zxvf clang-r450784e.tar.gz
+# lineageos20使用https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd.tar.gz
 wget -O gcc64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz && mkdir gcc64 && tar -C gcc64 -zxvf gcc64.tar.gz
 wget -O gcc32.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz && mkdir gcc32 && tar -C gcc32 -zxvf gcc32.tar.gz
 
