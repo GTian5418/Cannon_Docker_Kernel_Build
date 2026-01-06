@@ -22,24 +22,15 @@ wget -O gcc64.tar.gz \
   https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
 wget -O gcc32.tar.gz \
   https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
-wget -O kernel.zip \
-  https://github.com/GTian5418/android_kernel_xiaomi_cannon/archive/refs/heads/lineage-20.zip
 wget -O AnyKernel3.zip \
   https://github.com/osm0sis/AnyKernel3/archive/refs/heads/master.zip
-wget -O Anykernel/dtb.img \
-  https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtb.img
-wget -O Anykernel/dtbo.img \
-  https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtbo.img
-wget -O config.zip \
-  https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/config.zip
+git clone git@github.com:gtcock/android_kernel_xiaomi_cannon.git
 
 tar -C clang -zxvf clang.tar.gz
 tar -C gcc64 -zxvf gcc64.tar.gz
 tar -C gcc32 -zxvf gcc32.tar.gz
 
-unzip kernel.zip
 unzip AnyKernel3.zip
-unzip config.zip
 
 mv AnyKernel3-master Anykernel
 mv android_kernel_xiaomi_cannon-lineage-20 kernel
