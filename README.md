@@ -23,7 +23,7 @@ wget -O gcc64.tar.gz \
 wget -O gcc32.tar.gz \
   https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
 wget -O AnyKernel3.zip \
-  https://github.com/osm0sis/AnyKernel3/archive/refs/heads/master.zip
+  https://github.com/GTian5418/AnyKernel3/archive/refs/heads/cannon.zip
 git clone git@github.com:gtcock/android_kernel_xiaomi_cannon.git
 
 tar -C clang -zxvf clang.tar.gz
