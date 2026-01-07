@@ -73,7 +73,7 @@ jobs:
           if [ ! -d /cannon/clang ]; then
             echo "开始：下载并解压 clang..."
             mkdir -p /cannon/clang
-            download "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd.tar.gz" /cannon/clang.tar.gz
+            download "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd/clang-r450784d.tar.gz" /cannon/clang.tar.gz
             echo "解压 clang ..."
             tar -zxf /cannon/clang.tar.gz -C /cannon/clang --strip-components=1
             rm -f /cannon/clang.tar.gz
