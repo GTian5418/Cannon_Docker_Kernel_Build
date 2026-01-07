@@ -1,7 +1,9 @@
-name: Build Cannon Kernel God
-
+# 更新：2026-01-07 by GTian5418 (assistant)
+# 用途：构建 Cannon 内核并创建 Release、上传 artifact
 on:
   workflow_dispatch:
+
+name: Build Cannon Kernel God
 
 jobs:
   build:
@@ -13,30 +15,38 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 安装基础依赖
+      - name: 安装基础依赖（包含 gh CLI 和 ccache）
         run: |
           sudo apt update
-          sudo apt install -y git wget curl tar zip unzip make binutils bison flex libssl-dev bc libelf-dev gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi build-essential python3 libncurses5-dev libncursesw5-dev pkg-config ccache
+          sudo apt install -y git wget curl tar zip unzip make binutils bison flex libssl-dev bc libelf-dev gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi build-essential python3 libncurses5-dev libncursesw5-dev pkg-config ccache gh
 
-      - name: 准备编译环境
+      - name: 准备编译环境并下载工具链/源码/AnyKernel
         run: |
+          set -e
           sudo mkdir -p /cannon
           sudo chown $USER:$USER /cannon
           cd /cannon
-          # 下载 Clang (修正 URL)
-          wget -q "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master-kernel-build-2022/clang-r450784e.tar.gz"
-          mkdir clang && tar -zxf clang-r450784e.tar.gz -C clang
-          # 下载 GCC 64/32
+
+          wget -q "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd.tar.gz" -O clang-r450784d.tar.gz
+          mkdir -p clang && tar -zxf clang-r450784d.tar.gz -C clang
+
           wget -q -O gcc64.tar.gz "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
-          mkdir gcc64 && tar -zxf gcc64.tar.gz -C gcc64
+          mkdir -p gcc64 && tar -zxf gcc64.tar.gz -C gcc64
+
           wget -q -O gcc32.tar.gz "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
-          mkdir gcc32 && tar -zxf gcc32.tar.gz -C gcc32
-          # 下载源码及配置文件
-          wget -q -O kernel.zip "https://github.com/GTian5418/android_kernel_xiaomi_cannon/archive/refs/heads/lineage-20.zip" && unzip -q kernel.zip
-          wget -q -O AnyKernel3.zip "https://github.com/osm0sis/AnyKernel3/archive/refs/heads/master.zip" && unzip -q AnyKernel3.zip && mv AnyKernel3-master Anykernel
-          wget -q -O Anykernel/dtb.img "https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtb.img"
-          wget -q -O Anykernel/dtbo.img "https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtbo.img"
-          wget -q "https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/config.zip" && unzip -q config.zip
+          mkdir -p gcc32 && tar -zxf gcc32.tar.gz -C gcc32
+
+          wget -q -O kernel.zip "https://github.com/GTian5418/android_kernel_xiaomi_cannon/archive/refs/heads/lineage-20.zip"
+          unzip -q kernel.zip -d kernel_src
+          mkdir -p kernel
+          mv kernel_src/* kernel/
+          rm -rf kernel_src kernel.zip
+
+          wget -q -O AnyKernel3.zip "https://github.com/GTian5418/AnyKernel3/archive/refs/heads/cannon.zip"
+          unzip -q AnyKernel3.zip -d anykernel_src
+          mkdir -p Anykernel3
+          mv anykernel_src/* Anykernel3/
+          rm -rf anykernel_src AnyKernel3.zip
 
       - name: 设置 ccache 缓存
         uses: actions/cache@v4
@@ -45,57 +55,107 @@ jobs:
           key: kernel-ccache-${{ github.sha }}
           restore-keys: kernel-ccache-
 
-      - name: 开始编译
+      - name: 复制build.sh，执行编译脚本
         run: |
           cp build.sh /cannon/build.sh
           chmod +x /cannon/build.sh
-          cd /cannon && ./build.sh
+          cd /cannon
+          ./build.sh
 
-      - name: 准备 KernelSU 管理器
+      - name: 准备 KernelSU 管理器 APK
         run: |
-          wget -q -O /cannon/KernelSU.apk "https://github.com/tiann/KernelSU/releases/download/v1.0.5/KernelSU_v1.0.5_12081-release.apk"
+          wget -q -O /cannon/KernelSU.apk "https://github.com/tiann/KernelSU/releases/download/v1.0.1/KernelSU_v1.0.1_11928-release.apk"
           wget -q -O /cannon/KernelSU-Next.apk "https://github.com/KernelSU-Next/KernelSU-Next/releases/download/v1.1.1/KernelSU_Next_v1.1.1-spoofed_12851-release.apk"
 
-      - name: 发布 Release
+      - name: 生成 Release Tag
+        id: tag
+        run: |
+          echo "tag=$(date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
+
+      - name: 创建 GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG_NAME=$(date +%Y%m%d-%H%M)
-          gh release create "$TAG_NAME" \
-            /cannon/Anykernel3-Cannon-Docker-God.zip \
-            /cannon/Anykernel3-Cannon-Docker-God-KernelSu.zip \
-            /cannon/Anykernel3-Cannon-Docker-God-KernelSu-Next.zip \
-            /cannon/KernelSU.apk \
-            /cannon/KernelSU-Next.apk \
-            --title "Cannon-God 内核 - $TAG_NAME" \
-            --notes "包含标准版、KernelSU版、KSU-Next版内核及对应的管理器 APK"
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          release_name: "Cannon-God 内核 - ${{ steps.tag.outputs.tag }}"
+          body: "包含标准版、KernelSU版、KSU-Next版内核及对应的管理器 APK"
+          draft: false
+          prerelease: false
 
-      - name: 上传标准版内核
+      - name: 附加内核与 APK 到 Release（Docker.zip / Next.zip / Su.zip）
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/Docker.zip
+          asset_name: Anykernel3-Cannon-Docker-God.zip
+          asset_content_type: application/zip
+
+      - name: 附加 KernelSU-Next 到 Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/Next.zip
+          asset_name: Anykernel3-Cannon-Docker-God-KernelSu-Next.zip
+          asset_content_type: application/zip
+
+      - name: 附加 KernelSU 到 Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/Su.zip
+          asset_name: Anykernel3-Cannon-Docker-God-KernelSu.zip
+          asset_content_type: application/zip
+
+      - name: 附加 KernelSU 管理器 APK 到 Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/KernelSU.apk
+          asset_name: KernelSU.apk
+          asset_content_type: application/vnd.android.package-archive
+
+      - name: 附加 KernelSU-Next 管理器 APK 到 Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/KernelSU-Next.apk
+          asset_name: KernelSU-Next.apk
+          asset_content_type: application/vnd.android.package-archive
+
+      - name: 上传构建产物为 workflow artifacts（以便手动下载）
         uses: actions/upload-artifact@v4
         with:
           name: Anykernel3-Cannon-Docker-God
-          path: /cannon/Anykernel3-Cannon-Docker-God.zip
+          path: /cannon/Docker.zip
 
-      - name: 上传 KernelSU 版内核
+      - name: 上传 KernelSU 产物（artifact）
         uses: actions/upload-artifact@v4
         with:
           name: Anykernel3-Cannon-Docker-God-KernelSu
-          path: /cannon/Anykernel3-Cannon-Docker-God-KernelSu.zip
+          path: /cannon/Su.zip
 
-      - name: 上传 KernelSU-Next 版内核
+      - name: 上传 KernelSU-Next 产物（artifact）
         uses: actions/upload-artifact@v4
         with:
           name: Anykernel3-Cannon-Docker-God-KernelSu-Next
-          path: /cannon/Anykernel3-Cannon-Docker-God-KernelSu-Next.zip
+          path: /cannon/Next.zip
 
-      - name: 上传 KernelSU 管理器
+      - name: 上传 APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: KernelSU-APK
-          path: /cannon/KernelSU.apk
-
-      - name: 上传 KernelSU-Next 管理器
-        uses: actions/upload-artifact@v4
-        with:
-          name: KernelSU-Next-APK
-          path: /cannon/KernelSU-Next.apk
+          name: KernelSU-APKs
+          path: |
+            /cannon/KernelSU.apk
+            /cannon/KernelSU-Next.apk
