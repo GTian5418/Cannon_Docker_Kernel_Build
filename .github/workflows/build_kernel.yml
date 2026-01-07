@@ -46,57 +46,92 @@ jobs:
           restore-keys: |
             toolchains-${{ runner.os }}-v1-
 
-      - name: 移动 kernel 并条件性下载/解压工具链与 Anykernel（使用缓存避免重复下载）
+      - name: 移动 kernel 并条件性下载/解压工具链与 Anykernel
         run: |
-          set -e
+          set -ex
+          echo "STEP START: $(date)"
           rm -rf /cannon/kernel
           mkdir -p /cannon
           mv kernel_tmp /cannon/kernel
 
-          # Clang（仅当缓存未命中且目录不存在时才下载）
+          # 小函数：通过 curl 下载，带重试/超时，失败时输出 header
+          download() {
+            url="$1"
+            out="$2"
+            echo "下载: $url -> $out"
+            # 超时/重试设置：3 次重试，连接超时 30s，总超时 600s
+            timeout 900 curl -fSL --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 600 -o "$out" "$url" || {
+              echo "ERROR: 下载失败：$url"
+              echo "打印 HTTP HEAD 以便诊断："
+              curl -I "$url" || true
+              return 1
+            }
+            echo "下载完成：$(ls -lh "$out" || true)"
+          }
+
+          # Clang（仅当 /cannon/clang 不存在时下载）
           if [ ! -d /cannon/clang ]; then
-            echo "下载并解压 clang..."
-            wget -q -O /cannon/clang-r450784d.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd.tar.gz"
+            echo "开始：下载并解压 clang..."
             mkdir -p /cannon/clang
-            tar -zxf /cannon/clang-r450784d.tar.gz -C /cannon/clang --strip-components=1
-            rm -f /cannon/clang-r450784d.tar.gz
+            download "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd.tar.gz" /cannon/clang.tar.gz
+            echo "解压 clang ..."
+            tar -zxf /cannon/clang.tar.gz -C /cannon/clang --strip-components=1
+            rm -f /cannon/clang.tar.gz
+            echo "clang 解压完成："
+            du -sh /cannon/clang || true
           else
-            echo "clang 已从缓存恢复，跳过下载。"
+            echo "clang 已从缓存恢复，跳过下载。目录信息："
+            ls -la /cannon/clang | sed -n '1,200p' || true
           fi
 
           # GCC64
           if [ ! -d /cannon/gcc64 ]; then
-            echo "下载并解压 gcc64..."
-            wget -q -O /cannon/gcc64.tar.gz "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
+            echo "开始：下载并解压 gcc64..."
             mkdir -p /cannon/gcc64
+            download "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz" /cannon/gcc64.tar.gz
+            echo "解压 gcc64 ..."
             tar -zxf /cannon/gcc64.tar.gz -C /cannon/gcc64 --strip-components=1
             rm -f /cannon/gcc64.tar.gz
+            echo "gcc64 解压完成："
+            du -sh /cannon/gcc64 || true
           else
-            echo "gcc64 已从缓存恢复，跳过下载。"
+            echo "gcc64 已从缓存恢复，跳过下载��目录信息："
+            ls -la /cannon/gcc64 | sed -n '1,200p' || true
           fi
 
           # GCC32
           if [ ! -d /cannon/gcc32 ]; then
-            echo "下载并解压 gcc32..."
-            wget -q -O /cannon/gcc32.tar.gz "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
+            echo "开始：下载并解压 gcc32..."
             mkdir -p /cannon/gcc32
+            download "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz" /cannon/gcc32.tar.gz
+            echo "解压 gcc32 ..."
             tar -zxf /cannon/gcc32.tar.gz -C /cannon/gcc32 --strip-components=1
             rm -f /cannon/gcc32.tar.gz
+            echo "gcc32 解压完成："
+            du -sh /cannon/gcc32 || true
           else
-            echo "gcc32 已从缓存恢复，跳过下载。"
+            echo "gcc32 已从缓存恢复，跳过下载。目录信息："
+            ls -la /cannon/gcc32 | sed -n '1,200p' || true
           fi
 
           # Anykernel3（仅当不存在时下载并解压）
           if [ ! -d /cannon/Anykernel3 ]; then
-            echo "下载并准备 Anykernel3..."
-            wget -q -O /cannon/AnyKernel3.zip "https://github.com/GTian5418/AnyKernel3/archive/refs/heads/cannon.zip"
-            unzip -q /cannon/AnyKernel3.zip -d /cannon/anykernel_src
+            echo "开始：下载并准备 AnyKernel3..."
+            download "https://github.com/GTian5418/AnyKernel3/archive/refs/heads/cannon.zip" /cannon/Anykernel3.zip
+            echo "解压 AnyKernel3 ..."
+            unzip -o /cannon/Anykernel3.zip -d /cannon/anykernel_src
             mkdir -p /cannon/Anykernel3
-            mv /cannon/anykernel_src/* /cannon/Anykernel3/
-            rm -rf /cannon/anykernel_src /cannon/AnyKernel3.zip
+            mv /cannon/anykernel_src/* /cannon/Anykernel3/ || true
+            rm -rf /cannon/anykernel_src /cannon/Anykernel3.zip
+            echo "Anykernel3 准备完成："
+            ls -la /cannon/Anykernel3 | sed -n '1,200p' || true
           else
-            echo "Anykernel3 已存在，跳过下载。"
+            echo "Anykernel3 已存在，跳过下载。目录信息："
+            ls -la /cannon/Anykernel3 | sed -n '1,200p' || true
           fi
+
+          echo "工具链与 AnyKernel 检查完成"
+          echo "STEP END: $(date)"
 
       - name: 设置 ccache 缓存
         uses: actions/cache@v4
