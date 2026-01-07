@@ -142,6 +142,42 @@ jobs:
 
       - name: 复制 build.sh，执行编译脚本
         run: |
+          set -ex
+          echo "===== DEBUG: before running build.sh ====="
+          echo "PATH = $PATH"
+          echo "ls /cannon:"
+          ls -la /cannon || true
+          
+          echo "ls /cannon/clang/bin:"
+          ls -la /cannon/clang/bin || true
+          
+          echo "ls /cannon/gcc64/bin:"
+          ls -la /cannon/gcc64/bin || true
+          
+          echo "ls /cannon/gcc32/bin:"
+          ls -la /cannon/gcc32/bin || true
+          
+          echo "which ld.lld:"
+          command -v ld.lld || echo "ld.lld not found in PATH"
+          
+          echo "which aarch64-linux-android-ld:"
+          command -v aarch64-linux-android-ld || echo "aarch64-linux-android-ld not found in PATH"
+          
+          # 临时把工具链 bin 加到 PATH（确保没有多余空格）
+          export PATH="/cannon/clang/bin:/cannon/gcc64/bin:/cannon/gcc32/bin:$PATH"
+          echo "NEW PATH = $PATH"
+          
+          echo "再次检查工具:"
+          command -v ld.lld || echo "ld.lld still missing"
+          command -v aarch64-linux-android-ld || echo "aarch64-linux-android-ld still missing"
+          ls -la /cannon/clang/bin | sed -n '1,200p' || true
+          ls -la /cannon/gcc64/bin | sed -n '1,200p' || true
+          
+          # 如果需要，安装系统 lld 作为兜底（可选）
+          # sudo apt-get update
+          # sudo apt-get install -y lld || true
+          
+          # 最后执行 build.sh
           cp build.sh /cannon/build.sh
           chmod +x /cannon/build.sh
           cd /cannon
