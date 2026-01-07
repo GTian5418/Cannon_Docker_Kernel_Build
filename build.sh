@@ -8,7 +8,7 @@ TARGET_IMAGE="$OUT_DIR/arch/arm64/boot/Image.gz"
 ZIPS_OUT="$TOOLCHAIN/Docker.zip"          
 KSU_ZIPS_OUT="$TOOLCHAIN/Su.zip"       
 KSUN_ZIPS_OUT="$TOOLCHAIN/Next.zip"    
-export PATH="$TOOLCHAIN/clang/bin: $TOOLCHAIN/gcc64/bin:$TOOLCHAIN/gcc32/bin:$PATH"
+export PATH="$TOOLCHAIN/clang/bin:$TOOLCHAIN/gcc64/bin:$TOOLCHAIN/gcc32/bin:$PATH"
 export CCACHE_DIR="$TOOLCHAIN/.ccache"
 GCC64="aarch64-linux-android-"
 GCC32="arm-linux-androideabi-"
@@ -28,7 +28,7 @@ build_kernel() {
     local OUTPUT_ZIP=$2
     local LABEL=$3
     echo "=========================================="
-    echo "  编译:  $LABEL"
+    echo "  编译: $LABEL"
     echo "  分支: $BRANCH"
     echo "  输出: $OUTPUT_ZIP"
     echo "=========================================="
