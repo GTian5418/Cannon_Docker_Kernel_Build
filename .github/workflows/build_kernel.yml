@@ -283,31 +283,55 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: 上传产物到 Release
-        run: |
-          set -ex
-          UPLOAD_URL="${{ steps.create_release.outputs.upload_url }}"
-          
-          upload_asset() {
-            local file="$1"
-            local name="$2"
-            if [ -f "$file" ]; then
-              echo "上传: $name"
-              curl -s -f -X POST \
-                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                -H "Content-Type: application/octet-stream" \
-                --data-binary @"$file" \
-                "${UPLOAD_URL}?name=$name"
-            else
-              echo "文件不存在: $file"
-            fi
-          }
-          
-          upload_asset "/cannon/Docker.zip" "Anykernel3-Cannon-Docker-God.zip"
-          upload_asset "/cannon/Next.zip" "Anykernel3-Cannon-Docker-God-KernelSu-Next.zip"
-          upload_asset "/cannon/Su.zip" "Anykernel3-Cannon-Docker-God-KernelSu.zip"
-          upload_asset "/cannon/KernelSU.apk" "KernelSU.apk"
-          upload_asset "/cannon/KernelSU-Next.apk" "KernelSU-Next.apk"
+      - name: 上传 Docker.zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/Docker.zip
+          asset_name: Anykernel3-Cannon-Docker-God.zip
+          asset_content_type: application/zip
+      
+      - name: 上传 Next.zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/Next.zip
+          asset_name: Anykernel3-Cannon-Docker-God-KernelSu-Next.zip
+          asset_content_type: application/zip
+      
+      - name: 上传 Su.zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/Su.zip
+          asset_name: Anykernel3-Cannon-Docker-God-KernelSu.zip
+          asset_content_type: application/zip
+      
+      - name: 上传 KernelSU APK
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/KernelSU.apk
+          asset_name: KernelSU.apk
+          asset_content_type: application/vnd.android.package-archive
+      
+      - name: 上传 KernelSU-Next APK
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /cannon/KernelSU-Next.apk
+          asset_name: KernelSU-Next.apk
+          asset_content_type: application/vnd.android.package-archive
 
       - name: 上传构建产物为 artifacts
         uses: actions/upload-artifact@v4
