@@ -20,7 +20,7 @@ jobs:
       - name: 安装基础依赖（包含 gh CLI 和 ccache）
         run: |
           sudo apt update
-          sudo apt install -y git wget curl tar zip unzip make binutils bison flex libssl-dev bc libelf-dev gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi build-essential python3 libncurses5-dev libncursesw5-dev pkg-config ccache gh
+          sudo apt install -y git wget curl tar zip unzip make binutils bison flex libssl-dev bc libelf-dev gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi build-essential python3 libncurses5-dev libncursesw5-dev pkg-config ccache lld
 
       - name: 创建 /cannon 工作目录
         run: |
@@ -139,6 +139,60 @@ jobs:
           path: /cannon/.ccache
           key: kernel-ccache-${{ github.sha }}
           restore-keys: kernel-ccache-
+
+              
+      - name: 修复并检查交叉工具链可执行文件（自动修复破损 symlink）
+        run: |
+          set -ex
+      
+          echo "查找 /cannon 下的 aarch64 / arm 工具（快速诊断）"
+          find /cannon -maxdepth 4 -type f -name 'aarch64-linux-android-*' -print -ls || true
+          find /cannon -maxdepth 4 -type f -name 'arm-linux-androideabi-*' -print -ls || true
+          find /cannon -maxdepth 6 -type f -name 'ld.lld' -print -ls || true
+      
+          echo "检查并修复 /cannon/gcc64/bin 和 /cannon/gcc32/bin 中的破损 symlink"
+          for dir in gcc64 gcc32; do
+            bdir="/cannon/${dir}/bin"
+            if [ -d "$bdir" ]; then
+              for link in "$bdir"/*; do
+                [ -e "$link" ] || continue
+                if [ -L "$link" ]; then
+                  target_abs=$(readlink -f "$link" || true)
+                  if [ ! -e "$target_abs" ]; then
+                    name=$(basename "$link")
+                    echo "发现破损链接: $link -> $(readlink "$link") (目标不存在)"
+                    # 在 /cannon 下查找同名可执行文件
+                    found=$(find /cannon -type f -name "$name" | head -n 1 || true)
+                    if [ -n "$found" ]; then
+                      echo "找到真实文件: $found，重建符号链接 -> $link"
+                      ln -sf "$found" "$link"
+                    else
+                      echo "未能在 /cannon 下找到 $name"
+                    fi
+                  else
+                    echo "链接良好: $link -> $target_abs"
+                  fi
+                fi
+              done
+            fi
+          done
+      
+          echo "确保 /usr/bin/ld.lld 可用（系统 lld 安装后）"
+          if command -v ld.lld >/dev/null 2>&1; then
+            echo "ld.lld 在 PATH: $(command -v ld.lld)"
+          else
+            echo "ld.lld 仍不存在，workflow 已安装 lld 应该解决此问题（若未安装请检查上一步）"
+          fi
+      
+          echo "将交叉工具链 bin 显式加入 PATH 并打印版本信息"
+          export PATH="/cannon/clang/bin:/cannon/gcc64/bin:/cannon/gcc32/bin:$PATH"
+          echo "PATH=$PATH"
+          command -v aarch64-linux-android-ld || true
+          command -v arm-linux-androideabi-ld || true
+          aarch64-linux-android-ld --version || true
+          arm-linux-androideabi-ld --version || true
+          ld.lld --version || true
+
 
       - name: 复制 build.sh，执行编译脚本
         run: |
