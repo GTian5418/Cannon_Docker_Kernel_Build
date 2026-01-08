@@ -1,6 +1,5 @@
 #!/bin/bash
 TOOLCHAIN="/cannon"
-CONFIG_DIR="$TOOLCHAIN/config"
 KERNEL="$TOOLCHAIN/kernel"
 OUT_DIR="$TOOLCHAIN/out"
 AK_DIR="$TOOLCHAIN/Anykernel3"
