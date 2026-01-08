@@ -56,16 +56,6 @@ build_kernel() {
 build_kernel "main" "$ZIPS_OUT" "Docker内核"
 build_kernel "next" "$KSUN_ZIPS_OUT" "KernelSU-Next"
 build_kernel "ksu" "$KSU_ZIPS_OUT" "KernelSU"
-# ============================================
-# 复制到目标目录
-# ============================================
-echo "=========================================="
-echo "  复制到 /mnt/G/"
-echo "=========================================="
-cp "$ZIPS_OUT" /mnt/G/ 2>/dev/null && echo "✅ God.zip" || echo "⚠️ God.zip 复制失败"
-cp "$KSUN_ZIPS_OUT" /mnt/G/ 2>/dev/null && echo "✅ Next.zip" || echo "⚠️ Next.zip 复制失败"
-cp "$KSU_ZIPS_OUT" /mnt/G/ 2>/dev/null && echo "✅ Su. zip" || echo "⚠️ Su.zip 复制失败"
-echo ""
 echo "=========================================="
 echo "✅✅✅  全部完成！✅✅✅"
 echo "=========================================="
