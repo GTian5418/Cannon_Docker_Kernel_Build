@@ -78,7 +78,7 @@ jobs:
             echo "No cached tarball found — downloading toolchains..."
 
             # Clang
-            download "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd.tar.gz" /cannon/clang.tar.gz
+            download "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd/clang-r450784d.tar.gz" /cannon/clang.tar.gz
             mkdir -p /cannon/clang
             tar -zxf /cannon/clang.tar.gz -C /cannon/clang --strip-components=1
             rm -f /cannon/clang.tar.gz
