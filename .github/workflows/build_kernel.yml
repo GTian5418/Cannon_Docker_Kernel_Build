@@ -1,5 +1,3 @@
-# 更新：2026-01-08 by GTian5418 (assistant)
-# 用途：构建 Cannon 内核（从公开仓库 gtcock/android_kernel_xiaomi_cannon 克���全部分支）
 on:
   workflow_dispatch:
 
