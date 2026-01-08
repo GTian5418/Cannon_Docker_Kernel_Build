@@ -1,5 +1,5 @@
-# 更新：2026-01-07 by GTian5418 (assistant)
-# 用途：构建 Cannon 内核（从公开仓库 gtcock/android_kernel_xiaomi_cannon 克隆全部分支）
+# 更新：2026-01-08 by GTian5418 (assistant)
+# 用途：构建 Cannon 内核（从公开仓库 gtcock/android_kernel_xiaomi_cannon 克���全部分支）
 on:
   workflow_dispatch:
 
@@ -12,20 +12,21 @@ jobs:
       contents: write
 
     steps:
-      - name: 检出代码（工作流仓库，包含 build.sh）
+      - name: 检出 workflow 仓库（包含 build.sh）
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 安装基础依赖（包含 gh CLI 和 ccache）
+      - name: 安装基础依赖（包含 curl/ccache/lld）
         run: |
           sudo apt update
-          sudo apt install -y git wget curl tar zip unzip make binutils bison flex libssl-dev bc libelf-dev gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi build-essential python3 libncurses5-dev libncursesw5-dev pkg-config ccache lld
+          sudo apt install -y git wget curl tar zip unzip make binutils bison flex libssl-dev bc libelf-dev gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi build-essential python3 libncurses5-dev libncursesw5-dev pkg-config ccache gh lld xz-utils
 
       - name: 创建 /cannon 工作目录
         run: |
           sudo mkdir -p /cannon
           sudo chown $USER:$USER /cannon
+          mkdir -p /cannon/cache
 
       - name: Checkout kernel repo (public) — 获取全部分支
         uses: actions/checkout@v4
@@ -34,206 +35,177 @@ jobs:
           fetch-depth: 0
           path: kernel_tmp
 
-      - name: Cache toolchains (clang / gcc64 / gcc32)
+      - name: Cache toolchains tarball
         uses: actions/cache@v4
         with:
-          path: |
-            /cannon/clang
-            /cannon/gcc64
-            /cannon/gcc32
-          # 当 workflow 文件改变时刷新缓存
-          key: toolchains-${{ runner.os }}-v1-${{ hashFiles('.github/workflows/build.yml') }}
+          path: /cannon/cache/toolchains.tar.gz
+          key: toolchains-ubuntu-22.04-v1
           restore-keys: |
-            toolchains-${{ runner.os }}-v1-
+            toolchains-ubuntu-22.04-
 
-      - name: 移动 kernel 并条件性下载/解压工具链与 Anykernel
-        run: |
-          set -ex
-          echo "STEP START: $(date)"
-          rm -rf /cannon/kernel
-          mkdir -p /cannon
-          mv kernel_tmp /cannon/kernel
-
-          # 小函数：通过 curl 下载，带重试/超时，失败时输出 header
-          download() {
-            url="$1"
-            out="$2"
-            echo "下载: $url -> $out"
-            # 超时/重试设置：3 次重试，连接超时 30s，总超时 600s
-            timeout 900 curl -fSL --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 600 -o "$out" "$url" || {
-              echo "ERROR: 下载失败：$url"
-              echo "打印 HTTP HEAD 以便诊断："
-              curl -I "$url" || true
-              return 1
-            }
-            echo "下载完成：$(ls -lh "$out" || true)"
-          }
-
-          # Clang（仅当 /cannon/clang 不存在时下载）
-          if [ ! -d /cannon/clang ]; then
-            echo "开始：下载并解压 clang..."
-            mkdir -p /cannon/clang
-            download "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd/clang-r450784d.tar.gz" /cannon/clang.tar.gz
-            echo "解压 clang ..."
-            tar -zxf /cannon/clang.tar.gz -C /cannon/clang --strip-components=1
-            rm -f /cannon/clang.tar.gz
-            echo "clang 解压完成："
-            du -sh /cannon/clang || true
-          else
-            echo "clang 已从缓存恢复，跳过下载。目录信息："
-            ls -la /cannon/clang | sed -n '1,200p' || true
-          fi
-
-          # GCC64
-          if [ ! -d /cannon/gcc64 ]; then
-            echo "开始：下载并解压 gcc64..."
-            mkdir -p /cannon/gcc64
-            download "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz" /cannon/gcc64.tar.gz
-            echo "解压 gcc64 ..."
-            tar -zxf /cannon/gcc64.tar.gz -C /cannon/gcc64 --strip-components=1
-            rm -f /cannon/gcc64.tar.gz
-            echo "gcc64 解压完成："
-            du -sh /cannon/gcc64 || true
-          else
-            echo "gcc64 已从缓存恢复，跳过下载��目录信息："
-            ls -la /cannon/gcc64 | sed -n '1,200p' || true
-          fi
-
-          # GCC32
-          if [ ! -d /cannon/gcc32 ]; then
-            echo "开始：下载并解压 gcc32..."
-            mkdir -p /cannon/gcc32
-            download "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz" /cannon/gcc32.tar.gz
-            echo "解压 gcc32 ..."
-            tar -zxf /cannon/gcc32.tar.gz -C /cannon/gcc32 --strip-components=1
-            rm -f /cannon/gcc32.tar.gz
-            echo "gcc32 解压完成："
-            du -sh /cannon/gcc32 || true
-          else
-            echo "gcc32 已从缓存恢复，跳过下载。目录信息："
-            ls -la /cannon/gcc32 | sed -n '1,200p' || true
-          fi
-
-          # Anykernel3（仅当不存在时下载并解压）
-          if [ ! -d /cannon/Anykernel3 ]; then
-            echo "开始：下载并准备 AnyKernel3..."
-            download "https://github.com/GTian5418/AnyKernel3/archive/refs/heads/cannon.zip" /cannon/Anykernel3.zip
-            echo "解压 AnyKernel3 ..."
-            unzip -o /cannon/Anykernel3.zip -d /cannon/anykernel_src
-            mkdir -p /cannon/Anykernel3
-            mv /cannon/anykernel_src/* /cannon/Anykernel3/ || true
-            rm -rf /cannon/anykernel_src /cannon/Anykernel3.zip
-            echo "Anykernel3 准备完成："
-            ls -la /cannon/Anykernel3 | sed -n '1,200p' || true
-          else
-            echo "Anykernel3 已存在，跳过下载。目录信息："
-            ls -la /cannon/Anykernel3 | sed -n '1,200p' || true
-          fi
-
-          echo "工具链与 AnyKernel 检查完成"
-          echo "STEP END: $(date)"
-
-      - name: 设置 ccache 缓存
+      - name: Cache ccache
         uses: actions/cache@v4
         with:
           path: /cannon/.ccache
           key: kernel-ccache-${{ github.sha }}
           restore-keys: kernel-ccache-
 
-              
-      - name: 修复并检查交叉工具链可执行文件（自动修复破损 symlink）
+      - name: 移动 kernel 并恢复 / 下载 / 打包 toolchains（详细可见日志）
         run: |
           set -ex
-      
-          echo "查找 /cannon 下的 aarch64 / arm 工具（快速诊断）"
-          find /cannon -maxdepth 4 -type f -name 'aarch64-linux-android-*' -print -ls || true
-          find /cannon -maxdepth 4 -type f -name 'arm-linux-androideabi-*' -print -ls || true
-          find /cannon -maxdepth 6 -type f -name 'ld.lld' -print -ls || true
-      
-          echo "检查并修复 /cannon/gcc64/bin 和 /cannon/gcc32/bin 中的破损 symlink"
-          for dir in gcc64 gcc32; do
-            bdir="/cannon/${dir}/bin"
-            if [ -d "$bdir" ]; then
-              for link in "$bdir"/*; do
-                [ -e "$link" ] || continue
-                if [ -L "$link" ]; then
-                  target_abs=$(readlink -f "$link" || true)
-                  if [ ! -e "$target_abs" ]; then
-                    name=$(basename "$link")
-                    echo "发现破损链接: $link -> $(readlink "$link") (目标不存在)"
-                    # 在 /cannon 下查找同名可执行文件
-                    found=$(find /cannon -type f -name "$name" | head -n 1 || true)
-                    if [ -n "$found" ]; then
-                      echo "找到真实文件: $found，重建符号链接 -> $link"
-                      ln -sf "$found" "$link"
-                    else
-                      echo "未能在 /cannon 下找到 $name"
-                    fi
-                  else
-                    echo "链接良好: $link -> $target_abs"
-                  fi
-                fi
-              done
-            fi
-          done
-      
-          echo "确保 /usr/bin/ld.lld 可用（系统 lld 安装后）"
-          if command -v ld.lld >/dev/null 2>&1; then
-            echo "ld.lld 在 PATH: $(command -v ld.lld)"
+          # 移动 kernel
+          rm -rf /cannon/kernel
+          mkdir -p /cannon
+          mv kernel_tmp /cannon/kernel
+
+          # 准备 helper 下载函数（curl + retry + timeout）
+          download() {
+            url="$1"
+            out="$2"
+            echo "Downloading $url -> $out"
+            timeout 900 curl -fSL --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 600 -o "$out" "$url" || {
+              echo "ERROR: download failed for $url"
+              curl -I "$url" || true
+              return 1
+            }
+            echo "Downloaded: $(ls -lh "$out" || true)"
+          }
+
+          # 若存在已缓存的 tarball，直接解压
+          if [ -f /cannon/cache/toolchains.tar.gz ]; then
+            echo "Found cached toolchains tarball, extracting..."
+            tar -zxf /cannon/cache/toolchains.tar.gz -C /cannon
+            echo "Extraction done."
           else
-            echo "ld.lld 仍不存在，workflow 已安装 lld 应该解决此问题（若未安装请检查上一步）"
+            echo "No cached tarball found — downloading toolchains..."
+
+            # Clang
+            download "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd.tar.gz" /cannon/clang.tar.gz
+            mkdir -p /cannon/clang
+            tar -zxf /cannon/clang.tar.gz -C /cannon/clang --strip-components=1
+            rm -f /cannon/clang.tar.gz
+
+            # GCC64 (Android prebuilts)
+            download "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz" /cannon/gcc64.tar.gz
+            mkdir -p /cannon/gcc64
+            tar -zxf /cannon/gcc64.tar.gz -C /cannon/gcc64 --strip-components=1
+            rm -f /cannon/gcc64.tar.gz
+
+            # GCC32 (Android prebuilts)
+            download "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz" /cannon/gcc32.tar.gz
+            mkdir -p /cannon/gcc32
+            tar -zxf /cannon/gcc32.tar.gz -C /cannon/gcc32 --strip-components=1
+            rm -f /cannon/gcc32.tar.gz
+
+            # AnyKernel3 (仅当不存在)
+            if [ ! -d /cannon/Anykernel3 ]; then
+              download "https://github.com/GTian5418/AnyKernel3/archive/refs/heads/cannon.zip" /cannon/Anykernel3.zip
+              unzip -q /cannon/Anykernel3.zip -d /cannon/anykernel_src
+              mkdir -p /cannon/Anykernel3
+              mv /cannon/anykernel_src/* /cannon/Anykernel3/ || true
+              rm -rf /cannon/anykernel_src /cannon/Anykernel3.zip
+            fi
+
+            # 打包成单个 tar.gz 供 actions/cache 保存（下一次会被 restore）
+            tar -zcf /cannon/cache/toolchains.tar.gz -C /cannon clang gcc64 gcc32 || true
+            echo "Packed toolchains to /cannon/cache/toolchains.tar.gz"
           fi
-      
-          echo "将交叉工具链 bin 显式加入 PATH 并打印版本信息"
+
+          # 输出目录结构便于调试
+          echo "Contents of /cannon after toolchain setup:"
+          du -sh /cannon/* 2>/dev/null || true
+          ls -la /cannon | sed -n '1,200p' || true
+
+      - name: 修复交叉工具链的破损链接并确认工具可用
+        run: |
+          set -ex
+          echo "Fixing toolchain symlinks and verifying tools..."
+
+          for archdir in gcc64 gcc32; do
+            ROOT_DIR="/cannon/${archdir}"
+            BIN_DIR="${ROOT_DIR}/bin"
+            echo "Processing $ROOT_DIR"
+            if [ ! -d "$ROOT_DIR" ]; then
+              echo "$ROOT_DIR not found, skip"
+              continue
+            fi
+            mkdir -p "${BIN_DIR}"
+
+            # 查找实际存在的 tool 文件并重建 bin 下的链接（如果目标不存在）
+            for link in "${BIN_DIR}"/*; do
+              [ -e "$link" ] || continue
+              if [ -L "$link" ]; then
+                target_abs=$(readlink -f "$link" || true)
+                if [ -z "$target_abs" ] || [ ! -e "$target_abs" ]; then
+                  name=$(basename "$link")
+                  echo "Broken link: $link -> $(readlink "$link")"
+                  # 在 ROOT_DIR 顶层寻找候选
+                  found=$(find "$ROOT_DIR" -maxdepth 1 -type f -name "${name}*" | head -n 1 || true)
+                  if [ -n "$found" ]; then
+                    echo "Found real file: $found, relinking $link -> $found"
+                    ln -sf "$found" "$link"
+                  else
+                    # 如果是 ld，尝试用 .gold 或 .bfd
+                    if echo "$name" | grep -qE '(^|-)ld$'; then
+                      for alt in "${ROOT_DIR}/${name}.gold" "${ROOT_DIR}/${name}.bfd"; do
+                        if [ -f "$alt" ]; then
+                          echo "Using alternative $alt for $name"
+                          ln -sf "$alt" "$link"
+                          found="$alt"
+                          break
+                        fi
+                      done
+                    fi
+                    if [ -z "$found" ]; then
+                      echo "No candidate found for $name in $ROOT_DIR"
+                    fi
+                  fi
+                else
+                  echo "Link ok: $link -> $target_abs"
+                fi
+              fi
+            done
+
+            # 确保存在无后缀的 ld（创建到 ld.gold 或 ld.bfd）
+            for ldname in aarch64-linux-android-ld arm-linux-androideabi-ld; do
+              if [ ! -x "${ROOT_DIR}/${ldname}" ]; then
+                if [ -x "${ROOT_DIR}/${ldname}.gold" ]; then
+                  ln -sf "${ROOT_DIR}/${ldname}.gold" "${ROOT_DIR}/${ldname}"
+                  echo "Created ${ROOT_DIR}/${ldname} -> ${ROOT_DIR}/${ldname}.gold"
+                elif [ -x "${ROOT_DIR}/${ldname}.bfd" ]; then
+                  ln -sf "${ROOT_DIR}/${ldname}.bfd" "${ROOT_DIR}/${ldname}"
+                  echo "Created ${ROOT_DIR}/${ldname} -> ${ROOT_DIR}/${ldname}.bfd"
+                fi
+              fi
+            done
+
+            echo "Final sample executables in $ROOT_DIR:"
+            ls -la "$ROOT_DIR" | sed -n '1,200p' || true
+            echo "Final $BIN_DIR contents:"
+            ls -la "$BIN_DIR" | sed -n '1,200p' || true
+          done
+
+          # 确保系统 ld.lld 可用（我们在安装 deps 时已安装 lld）
+          if command -v ld.lld >/dev/null 2>&1; then
+            echo "ld.lld in PATH: $(command -v ld.lld)"
+          else
+            echo "Warning: ld.lld not found in PATH; ensure lld was installed."
+          fi
+
           export PATH="/cannon/clang/bin:/cannon/gcc64/bin:/cannon/gcc32/bin:$PATH"
           echo "PATH=$PATH"
-          command -v aarch64-linux-android-ld || true
-          command -v arm-linux-androideabi-ld || true
           aarch64-linux-android-ld --version || true
           arm-linux-androideabi-ld --version || true
           ld.lld --version || true
 
-
-      - name: 复制 build.sh，执行编译脚本
+      - name: 复制 build.sh 并执行编译（带更多输出）
         run: |
           set -ex
-          echo "===== DEBUG: before running build.sh ====="
-          echo "PATH = $PATH"
-          echo "ls /cannon:"
-          ls -la /cannon || true
-          
-          echo "ls /cannon/clang/bin:"
-          ls -la /cannon/clang/bin || true
-          
-          echo "ls /cannon/gcc64/bin:"
-          ls -la /cannon/gcc64/bin || true
-          
-          echo "ls /cannon/gcc32/bin:"
-          ls -la /cannon/gcc32/bin || true
-          
-          echo "which ld.lld:"
-          command -v ld.lld || echo "ld.lld not found in PATH"
-          
-          echo "which aarch64-linux-android-ld:"
-          command -v aarch64-linux-android-ld || echo "aarch64-linux-android-ld not found in PATH"
-          
-          # 临时把工具链 bin 加到 PATH（确保没有多余空格）
-          export PATH="/cannon/clang/bin:/cannon/gcc64/bin:/cannon/gcc32/bin:$PATH"
-          echo "NEW PATH = $PATH"
-          
-          echo "再次检查工具:"
-          command -v ld.lld || echo "ld.lld still missing"
-          command -v aarch64-linux-android-ld || echo "aarch64-linux-android-ld still missing"
-          ls -la /cannon/clang/bin | sed -n '1,200p' || true
-          ls -la /cannon/gcc64/bin | sed -n '1,200p' || true
-          
-          # 如果需要，安装系统 lld 作为兜底（可选）
-          # sudo apt-get update
-          # sudo apt-get install -y lld || true
-          
-          # 最后执行 build.sh
           cp build.sh /cannon/build.sh
           chmod +x /cannon/build.sh
+          # 确保 PATH 中包含 toolchains
+          export PATH="/cannon/clang/bin:/cannon/gcc64/bin:/cannon/gcc32/bin:$PATH"
+          echo "Running build.sh with PATH=$PATH"
           cd /cannon
           ./build.sh
 
