@@ -82,16 +82,18 @@ declare -A MAP=(
     [next]=Next.zip
     [ksu]=Su.zip
     [next-susfs]=Susfs.zip
+    [next-susfs-new]=SusfsNew.zip
 )
 declare -A LABEL=(
     [lineage-21-cannon]="无 KernelSU"
     [next]="KernelSU-Next v1.1.1"
     [ksu]="KernelSU v0.9.5"
     [next-susfs]="KernelSU-Next + SUSFS"
+    [next-susfs-new]="KernelSU-Next v3.4.2 + SUSFS v2.3.0"
 )
 
 BRANCHES=("$@")
-[ ${#BRANCHES[@]} -eq 0 ] && BRANCHES=(lineage-21-cannon next ksu next-susfs)
+[ ${#BRANCHES[@]} -eq 0 ] && BRANCHES=(lineage-21-cannon next ksu next-susfs next-susfs-new)
 
 FAILED=()
 for br in "${BRANCHES[@]}"; do
