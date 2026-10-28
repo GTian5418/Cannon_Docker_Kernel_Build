@@ -6,21 +6,29 @@ RUN apt update -y && apt install -y \
     libncurses5-dev libncursesw5-dev pkg-config ccache && \
     apt clean && rm -rf /var/lib/apt/lists/*
 WORKDIR /cannon
-RUN wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master-kernel-build-2022/clang-r450784e.tar.gz && \
-    mkdir clang && tar -C clang -zxvf clang-r450784e.tar.gz && \
-    wget -O gcc64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz && \
-    mkdir gcc64 && tar -C gcc64 -zxvf gcc64.tar.gz && \
-    wget -O gcc32.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz && \
-    mkdir gcc32 && tar -C gcc32 -zxvf gcc32.tar.gz
-RUN wget -O kernel.zip https://github.com/GTian5418/android_kernel_xiaomi_cannon/archive/refs/heads/lineage-20.zip && \
-    unzip kernel.zip && \
-    wget -O AnyKernel3.zip https://github.com/osm0sis/AnyKernel3/archive/refs/heads/master.zip && \
-    unzip AnyKernel3.zip && mv AnyKernel3-master Anykernel && \
-    wget -O Anykernel/dtb.img https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtb.img && \
-    wget -O Anykernel/dtbo.img https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtbo.img && \
-    wget https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/config.zip && \
-    unzip config.zip && \
-    rm -rf *.zip *.gz Anykernel/LICENSE Anykernel/README.md
+
+# Clang r487747c —— 和 LineageOS 21 源码树里的 prebuilts/clang 完全一致
+RUN wget -O /tmp/clang.tgz \
+      'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/7154d3eddcb62ff7909a6ae2bf0c03e445e65bc4/clang-r487747c.tar.gz' && \
+    mkdir -p clang && tar -C clang -zxf /tmp/clang.tgz && rm -f /tmp/clang.tgz
+
+# GCC 4.9（只作 CROSS_COMPILE 前缀，实际 CC=clang）
+RUN wget -O /tmp/gcc64.tgz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz && \
+    mkdir -p gcc64 && tar -C gcc64 -zxf /tmp/gcc64.tgz && \
+    wget -O /tmp/gcc32.tgz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz && \
+    mkdir -p gcc32 && tar -C gcc32 -zxf /tmp/gcc32.tgz && \
+    rm -f /tmp/gcc64.tgz /tmp/gcc32.tgz
+
+# 内核源码（四个分支：lineage-21-cannon / next / ksu / next-susfs）
+RUN git clone https://github.com/top-android/android_kernel_xiaomi_cannon.git kernel
+
+# AnyKernel3（打包成可刷 zip）
+RUN wget -O /tmp/ak.zip https://github.com/GTian5418/AnyKernel3/archive/refs/heads/cannon.zip && \
+    unzip -q /tmp/ak.zip -d /tmp && mv /tmp/AnyKernel3-cannon /cannon/Anykernel && \
+    rm -f /tmp/ak.zip /cannon/Anykernel/LICENSE /cannon/Anykernel/README.md
+
 COPY build.sh /cannon/build.sh
 RUN chmod +x /cannon/build.sh
-CMD ["/bin/bash", "-c", "/cannon/build.sh && cp /cannon/*.zip /output/"]
+
+# 产物会被拷到 /output（运行时 -v 挂载）
+CMD ["/bin/bash", "-c", "/cannon/build.sh && mkdir -p /output && cp /cannon/dist/*.zip /output/"]
