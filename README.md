@@ -140,9 +140,8 @@ cd /cannon
 | open_redirect | `add_open_redirect <target> <redirected>`（只对 uid<2000 生效） |
 | enable_log | `enable_log 0\|1` |
 
-工具源码和详细说明在
-[GTian5418/cannon-lineageos-21-build](https://github.com/GTian5418/cannon-lineageos-21-build)
-的 `tools/ksu_susfs/` 与 `docs/2026-10-28-SUSFS*` 系列。
+工具源码和详细说明放在**另一个私有仓库**里（未公开，不提供链接），
+对应其 `tools/ksu_susfs/` 与 `docs/2026-10-28-SUSFS*` 系列。
 
 ## 几个关键点
 
