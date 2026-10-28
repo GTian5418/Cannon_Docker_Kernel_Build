@@ -1,7 +1,7 @@
 # Cannon Docker Kernel Build
 
 Redmi Note 9T 5G（cannon / cannong，MT6853T）的**内核单独编译**环境。
-不依赖 LineageOS 源码树，一把出四个分支的内核，打成 AnyKernel3 可刷 zip。
+不依赖 LineageOS 源码树，一把出五个分支的内核，打成 AnyKernel3 可刷 zip。
 
 > 只想换内核、不想动 system 的话用这个；要出整包 ROM 请用
 > [top-android/cannon-build](https://github.com/top-android/cannon-build)。
@@ -89,7 +89,7 @@ unzip -q /tmp/config.zip -d /cannon && rm -f /tmp/config.zip
 cd /cannon
 git clone git@github.com:top-android/android_kernel_xiaomi_cannon.git kernel
 cd kernel && git branch -a
-# 应该看到：lineage-21-cannon / next / ksu / next-susfs
+# 应该看到：lineage-21-cannon / next / ksu / next-susfs / next-susfs-new
 ```
 
 ## 目录结构
@@ -97,7 +97,7 @@ cd kernel && git branch -a
 ```text
 /cannon/
 ├── build.sh          编译脚本
-├── kernel/           内核源码（四分支）
+├── kernel/           内核源码（五分支）
 ├── clang/            clang-r487747c
 ├── gcc64/ gcc32/     GCC 4.9
 ├── Anykernel/        AnyKernel3
@@ -110,7 +110,7 @@ cd kernel && git branch -a
 
 ```bash
 cd /cannon
-./build.sh                  # 四个分支全编
+./build.sh                  # 五个分支全编
 ./build.sh next ksu         # 只编指定的
 ```
 
@@ -121,7 +121,28 @@ cd /cannon
 | `lineage-21-cannon` | `dist/God.zip` | 无 KernelSU（ROM 用的就是这个） |
 | `next` | `dist/Next.zip` | KernelSU-Next v1.1.1 |
 | `ksu` | `dist/Su.zip` | KernelSU v0.9.5 |
-| `next-susfs` | `dist/Susfs.zip` | KernelSU-Next + SUSFS |
+| `next-susfs` | `dist/Susfs.zip` | KernelSU-Next + SUSFS（旧版 1.x 协议） |
+| `next-susfs-new` | `dist/SusfsNew.zip` | KernelSU-Next v3.4.2 + SUSFS v2.3.0（新 reboot 超调用协议） |
+
+### `next-susfs-new` 有什么不同
+
+它是 2026-10-28 重新做的一条线：SUSFS 用上游 v2.3.0 的**新 reboot 超调用协议**
+（`syscall(SYS_reboot, 0xDEADBEEF, 0xFAFAFAFA, cmd, &payload)`），不再是旧版的 prctl。
+一共 7 个功能，都能从用户态驱动：
+
+| 功能 | 命令（`ksu_susfs`） |
+|---|---|
+| sus_path | `add_sus_path` / `add_sus_path_loop` |
+| sus_kstat | `add_sus_kstat` / `add_sus_kstat_static` |
+| sus_mount | 挂载时自动 |
+| spoof_uname | `set_uname <release> <version>` |
+| spoof_cmdline | `set_cmdline <words...>` |
+| open_redirect | `add_open_redirect <target> <redirected>`（只对 uid<2000 生效） |
+| enable_log | `enable_log 0\|1` |
+
+工具源码和详细说明在
+[GTian5418/cannon-lineageos-21-build](https://github.com/GTian5418/cannon-lineageos-21-build)
+的 `tools/ksu_susfs/` 与 `docs/2026-10-28-SUSFS*` 系列。
 
 ## 几个关键点
 
@@ -143,7 +164,12 @@ export KBUILD_BUILD_VERSION=1
 - `CONFIG_LOCALVERSION="-God"` → 出现 `-God`
 - 缺 `# CONFIG_LOCALVERSION_AUTO is not set` → 该选项默认 `y`，`git describe` 把 commit 哈希带出来
 
-现在四个分支的 defconfig 已经统一（md5 都是 `e7a04a2113d7`），版本串是干净的 `4.14.336`。
+`lineage-21-cannon` / `next` / `ksu` / `next-susfs` 四个分支的 defconfig 完全一致
+（md5 都是 `e7a04a2113d79ea77ad0dd82b186ad8a`），版本串是干净的 `4.14.336`。
+
+`next-susfs-new` 的 md5 是 `d09afffbfcc3f7cc43ffc3ac33051b1a` —— 差异**只**在文件末尾多了
+7 行 `CONFIG_KSU_SUSFS_*`，版本串同样是 `4.14.336`，没有 `-God` / `-g<hash>`。
+
 如果以后又从别的分支拉代码，记得检查 defconfig 第 2 行。
 
 ### 为什么脚本用 `git checkout -f`
@@ -170,4 +196,4 @@ adb sideload God.zip
 
 - 只出 `Image.gz`，不带 `dtbo` / `vbmeta`。换内核不需要动这些。
 - AnyKernel3 的 `anykernel.sh` 来自 [GTian5418/AnyKernel3](https://github.com/GTian5418/AnyKernel3) 的 `cannon` 分支，设备名、分区布局都在里面。
-- 内核源码变更后记得 `git pull`，四个分支要一起拉。
+- 内核源码变更后记得 `git pull`，五个分支要一起拉。
