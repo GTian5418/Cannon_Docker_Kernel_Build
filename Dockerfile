@@ -22,10 +22,14 @@ RUN wget -O /tmp/gcc64.tgz https://android.googlesource.com/platform/prebuilts/g
 # 内核源码（四个分支：lineage-21-cannon / next / ksu / next-susfs）
 RUN git clone https://github.com/top-android/android_kernel_xiaomi_cannon.git kernel
 
-# AnyKernel3（打包成可刷 zip）
+# AnyKernel3（打包成可刷 zip）+ anykernel.sh 依赖的 dtb / dtbo / config
 RUN wget -O /tmp/ak.zip https://github.com/GTian5418/AnyKernel3/archive/refs/heads/cannon.zip && \
     unzip -q /tmp/ak.zip -d /tmp && mv /tmp/AnyKernel3-cannon /cannon/Anykernel && \
-    rm -f /tmp/ak.zip /cannon/Anykernel/LICENSE /cannon/Anykernel/README.md
+    rm -f /tmp/ak.zip /cannon/Anykernel/LICENSE /cannon/Anykernel/README.md && \
+    wget -O /cannon/Anykernel/dtb.img  https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtb.img && \
+    wget -O /cannon/Anykernel/dtbo.img https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtbo.img && \
+    wget -O /tmp/config.zip https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/config.zip && \
+    unzip -q /tmp/config.zip -d /cannon && rm -f /tmp/config.zip
 
 COPY build.sh /cannon/build.sh
 RUN chmod +x /cannon/build.sh

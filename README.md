@@ -66,13 +66,21 @@ tar -C /cannon/gcc32 -zxf gcc32.tar.gz
 rm -f gcc64.tar.gz gcc32.tar.gz
 ```
 
-### 3. AnyKernel3（打包用）
+### 3. AnyKernel3（打包用）+ dtb / dtbo / config
+
+> `anykernel.sh` 依赖 `dtb.img` / `dtbo.img` / `config.zip`，不能漏。
 
 ```bash
 wget -O /tmp/ak.zip https://github.com/GTian5418/AnyKernel3/archive/refs/heads/cannon.zip
 unzip -q /tmp/ak.zip -d /tmp
 mv /tmp/AnyKernel3-cannon /cannon/Anykernel
 rm -f /tmp/ak.zip /cannon/Anykernel/LICENSE /cannon/Anykernel/README.md
+
+# anykernel.sh 依赖这三个，不能漏
+wget -O /cannon/Anykernel/dtb.img  https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtb.img
+wget -O /cannon/Anykernel/dtbo.img https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/dtbo.img
+wget -O /tmp/config.zip https://github.com/GTian5418/android_kernel_xiaomi_cannon/releases/download/Kernel/config.zip
+unzip -q /tmp/config.zip -d /cannon && rm -f /tmp/config.zip
 ```
 
 ### 4. 内核源码
